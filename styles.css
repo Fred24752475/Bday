@@ -369,6 +369,11 @@ body {
   visibility: hidden;
 }
 
+.countdown.is-on {
+  opacity: 1;
+  visibility: visible;
+}
+
 .countdown-ring {
   position: absolute;
   width: min(48vw, 240px);

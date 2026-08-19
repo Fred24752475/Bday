@@ -232,7 +232,9 @@ const glow = document.querySelector(".glow");
 const memories = document.getElementById("memories");
 const bgPhoto = document.getElementById("bg-photo-img");
 
-gsap.set(bgPhoto, { autoAlpha: 0, scale: 0.92, y: 28 });
+if (typeof gsap !== "undefined" && bgPhoto) {
+  gsap.set(bgPhoto, { autoAlpha: 0, scale: 0.92, y: 28 });
+}
 
 function fitPhoto() {
   if (!bgPhoto) {
@@ -253,6 +255,33 @@ if (bgPhoto) {
     bgPhoto.addEventListener("load", fitPhoto);
   }
 }
+
+function revealPhoto() {
+  if (!bgPhoto) {
+    return;
+  }
+  if (typeof gsap === "undefined") {
+    bgPhoto.style.opacity = "1";
+    bgPhoto.style.visibility = "visible";
+    bgPhoto.style.transform = "none";
+    return;
+  }
+  gsap.fromTo(
+    bgPhoto,
+    { autoAlpha: 0, scale: 0.92, y: 28 },
+    { autoAlpha: 1, scale: 1, y: 0, duration: 2.2, ease: "power2.out" }
+  );
+}
+
+window.BDAY.whenReady(function () {
+  loveScreenOpen = true;
+  loveScreenReady = true;
+  revealPhoto();
+  if (window.__bdayPlayHeart) {
+    window.__bdayPlayHeart();
+  }
+  speakWish();
+});
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, viewSize().w / Math.max(viewSize().h, 1), 1, 3000);
@@ -298,7 +327,7 @@ function createSprite() {
 function sampleHeart() {
   const path = document.querySelector("#heart-path");
   const length = path.getTotalLength();
-  const step = isMobile ? 0.2 : 0.11;
+  const step = isMobile ? 0.42 : 0.16;
   const targets = [];
   const delays = [];
   const durations = [];
@@ -523,14 +552,6 @@ function startHeartbeat() {
     .to(heart.scale, { x: 1, y: 1, z: 1, duration: 0.28, ease: "power2.in" });
 }
 
-function revealPhoto() {
-  gsap.fromTo(
-    bgPhoto,
-    { autoAlpha: 0, scale: 0.92, y: 28 },
-    { autoAlpha: 1, scale: 1, y: 0, duration: 2.2, ease: "power2.out" }
-  );
-}
-
 function openLoveScreen() {
   gsap.to(intro, {
     autoAlpha: 0,
@@ -735,7 +756,15 @@ function showPhotos() {
 
 preparePhotos();
 
-bindActivate(intro, startShow);
+window.__bdayPlayHeart = function () {
+  gather.play(0);
+  words.play(0);
+};
+
+if (window.BDAY.opened) {
+  window.__bdayPlayHeart();
+}
+
 bindActivate(replay, replayShow);
 
 const voiceToggle = document.getElementById("voice-toggle");
