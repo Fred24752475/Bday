@@ -79,16 +79,18 @@ if (canSpeak) {
   }, 8000);
 }
 
+let loveScreenReady = false;
+let wishSpeechStarted = false;
+let speechToken = 0;
+
 function stopSpeech() {
+  speechToken += 1;
   if (canSpeak) {
     window.speechSynthesis.cancel();
   }
 }
 
-function speakText(text, rate = 0.9) {
-  if (!canSpeak || !voiceOn || !text) {
-    return;
-  }
+function makeUtterance(text, rate) {
   loadVoices();
   const utterance = new SpeechSynthesisUtterance(text);
   if (chosenVoice) {
@@ -98,27 +100,80 @@ function speakText(text, rate = 0.9) {
   utterance.rate = rate;
   utterance.pitch = 1.04;
   utterance.volume = 1;
-  window.speechSynthesis.speak(utterance);
+  return utterance;
 }
 
-function queueShowSpeech() {
+function speakText(text, rate = 0.9) {
+  if (!canSpeak || !voiceOn || !text) {
+    return;
+  }
+  window.speechSynthesis.speak(makeUtterance(text, rate));
+}
+
+function waitForLoveScreenThenWish(token) {
+  if (token !== speechToken || !voiceOn || wishSpeechStarted) {
+    return;
+  }
+  if (loveScreenReady) {
+    wishSpeechStarted = true;
+    window.setTimeout(() => {
+      if (token !== speechToken || !voiceOn) {
+        return;
+      }
+      speakWish();
+    }, 450);
+    return;
+  }
+  window.setTimeout(() => {
+    if (token !== speechToken || !voiceOn || wishSpeechStarted) {
+      return;
+    }
+    if (loveScreenReady) {
+      waitForLoveScreenThenWish(token);
+      return;
+    }
+    const keep = makeUtterance(".", 0.7);
+    keep.volume = 0.01;
+    keep.onend = () => waitForLoveScreenThenWish(token);
+    keep.onerror = () => waitForLoveScreenThenWish(token);
+    window.speechSynthesis.speak(keep);
+  }, 350);
+}
+
+function queueCountdownVoice() {
   if (!canSpeak || !voiceOn) {
     return;
   }
+  stopSpeech();
+  const token = speechToken;
+  loveScreenReady = false;
+  wishSpeechStarted = false;
   loadVoices();
   try {
     window.speechSynthesis.resume();
   } catch (error) {
     // iOS can throw if the engine is not ready yet
   }
-  stopSpeech();
-  speakText("3", 0.8);
-  speakText("2", 0.8);
-  speakText("1", 0.8);
-  speakText(`Happy Birthday, ${herName}.`, 0.88);
-  speakText(WISH.opener, 0.88);
-  WISH.lines.forEach((line) => speakText(line, 0.88));
-  speakText(WISH.closer, 0.88);
+
+  const nums = ["3", "2", "1"];
+  let index = 0;
+
+  const speakNextNumber = () => {
+    if (token !== speechToken || !voiceOn) {
+      return;
+    }
+    if (index >= nums.length) {
+      waitForLoveScreenThenWish(token);
+      return;
+    }
+    const utterance = makeUtterance(nums[index], 0.8);
+    index += 1;
+    utterance.onend = speakNextNumber;
+    utterance.onerror = speakNextNumber;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  speakNextNumber();
 }
 
 function speakWish() {
@@ -486,10 +541,11 @@ function openLoveScreen() {
     },
   });
   loveScreenOpen = true;
+  loveScreenReady = true;
   revealPhoto();
   gather.play(0);
   words.play(0);
-}
+  waitForLoveScreenThenWish(speechToken);
 
 function playCountdownThenOpen() {
   const labels = {
@@ -561,7 +617,7 @@ function startShow() {
   }
   showStarted = true;
   intro.style.cursor = "default";
-  queueShowSpeech();
+  queueCountdownVoice();
   playCountdownThenOpen();
 }
 
