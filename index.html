@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <title>Happy Birthday Jessica</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Great+Vibes&family=Outfit:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <svg class="heart-svg" viewBox="0 0 600 552" aria-hidden="true">
+      <path
+        id="heart-path"
+        d="M300,516.406C236.719,467.578,47.266,342.187,47.266,197.266
+        C47.266,116.016,113.672,49.609,194.922,49.609
+        C241.406,49.609,282.422,71.484,300,105.469
+        C317.578,71.484,358.594,49.609,405.078,49.609
+        C486.328,49.609,552.734,116.016,552.734,197.266
+        C552.734,342.187,363.281,467.578,300,516.406Z"
+      />
+    </svg>
+
+    <div class="bg-photo" aria-hidden="true">
+      <img
+        src="photos/jessica.png"
+        alt=""
+        width="774"
+        height="1024"
+        id="bg-photo-img"
+      />
+    </div>
+    <div id="canvas-wrap"></div>
+    <div class="vignette"></div>
+    <div class="glow"></div>
+
+    <div class="stage">
+      <p class="eyebrow" id="eyebrow">Happy Birthday</p>
+      <h1 class="name" id="her-name"></h1>
+    </div>
+
+    <article class="wish" id="wish">
+      <p class="wish-open" id="wish-open"></p>
+      <div class="wish-lines" id="wish-lines"></div>
+      <p class="wish-close" id="wish-close"></p>
+    </article>
+
+    <div class="memories" id="memories" aria-hidden="true"></div>
+
+    <button class="replay" id="replay" type="button" aria-label="Play again">
+      Play again
+    </button>
+
+    <div class="intro" id="intro" tabindex="0" role="button" aria-label="Tap to open Jessica's birthday gift">
+      <div class="intro-copy" id="intro-copy">
+        <p class="intro-kicker">for Jessica</p>
+        <p class="intro-title">I made this for you</p>
+        <span class="intro-hit">tap anywhere</span>
+      </div>
+      <div class="countdown" id="countdown" aria-hidden="true">
+        <div class="countdown-ring"></div>
+        <p class="countdown-label">ready?</p>
+        <span class="countdown-num" id="countdown-num">3</span>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/three@0.160.1/build/three.min.js"></script>
+    <script src="https://unpkg.com/gsap@3.13.0/dist/gsap.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
