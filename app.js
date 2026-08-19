@@ -41,6 +41,85 @@ WISH.lines.forEach((line) => {
   wishLines.appendChild(p);
 });
 
+const canSpeak = "speechSynthesis" in window;
+let voiceOn = true;
+let chosenVoice = null;
+let loveScreenOpen = false;
+
+function loadVoices() {
+  if (!canSpeak) {
+    return;
+  }
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) {
+    return;
+  }
+  const preferred = [
+    "Samantha",
+    "Google UK English Female",
+    "Google US English",
+    "Microsoft Aria",
+    "Microsoft Zira",
+    "Karen",
+    "Moira",
+  ];
+  chosenVoice =
+    preferred.map((name) => voices.find((voice) => voice.name.includes(name))).find(Boolean) ||
+    voices.find((voice) => voice.lang.toLowerCase().startsWith("en")) ||
+    voices[0];
+}
+
+if (canSpeak) {
+  loadVoices();
+  window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+  window.setInterval(() => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.resume();
+    }
+  }, 8000);
+}
+
+function stopSpeech() {
+  if (canSpeak) {
+    window.speechSynthesis.cancel();
+  }
+}
+
+function speakText(text, rate = 0.9) {
+  if (!canSpeak || !voiceOn || !text) {
+    return;
+  }
+  const utterance = new SpeechSynthesisUtterance(text);
+  if (chosenVoice) {
+    utterance.voice = chosenVoice;
+  }
+  utterance.lang = chosenVoice?.lang || "en-US";
+  utterance.rate = rate;
+  utterance.pitch = 1.04;
+  utterance.volume = 1;
+  window.speechSynthesis.speak(utterance);
+}
+
+function startVoiceForShow() {
+  stopSpeech();
+  if (!voiceOn) {
+    return;
+  }
+  speakText("3", 0.85);
+  speakText("2", 0.85);
+  speakText("1", 0.85);
+}
+
+function speakWish() {
+  if (!voiceOn) {
+    return;
+  }
+  speakText(`Happy Birthday, ${herName}.`, 0.88);
+  speakText(WISH.opener, 0.88);
+  WISH.lines.forEach((line) => speakText(line, 0.88));
+  speakText(WISH.closer, 0.88);
+}
+
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = window.matchMedia("(max-width: 720px)").matches;
 
@@ -388,9 +467,11 @@ function openLoveScreen() {
       intro.style.pointerEvents = "none";
     },
   });
+  loveScreenOpen = true;
   revealPhoto();
   gather.play(0);
   words.play(0);
+  speakWish();
 }
 
 function playCountdownThenOpen() {
@@ -466,6 +547,7 @@ function startShow(event) {
     event.preventDefault();
   }
   intro.style.cursor = "default";
+  startVoiceForShow();
   playCountdownThenOpen();
 }
 
@@ -485,6 +567,8 @@ function replayShow() {
   revealPhoto();
   gather.play(0);
   words.play(0);
+  stopSpeech();
+  speakWish();
 }
 
 function bindTap(el, handler) {
@@ -571,6 +655,24 @@ preparePhotos();
 
 bindTap(intro, startShow);
 bindTap(replay, replayShow);
+
+const voiceToggle = document.getElementById("voice-toggle");
+function syncVoiceButton() {
+  voiceToggle.textContent = voiceOn ? "Sound on" : "Sound off";
+  voiceToggle.setAttribute("aria-pressed", voiceOn ? "true" : "false");
+}
+voiceToggle.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  voiceOn = !voiceOn;
+  syncVoiceButton();
+  if (!voiceOn) {
+    stopSpeech();
+  } else if (loveScreenOpen) {
+    stopSpeech();
+    speakWish();
+  }
+});
 
 window.addEventListener("pointermove", (event) => {
   pointerX = (event.clientX / window.innerWidth) * 2 - 1;
