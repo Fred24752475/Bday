@@ -89,6 +89,7 @@ function speakText(text, rate = 0.9) {
   if (!canSpeak || !voiceOn || !text) {
     return;
   }
+  loadVoices();
   const utterance = new SpeechSynthesisUtterance(text);
   if (chosenVoice) {
     utterance.voice = chosenVoice;
@@ -100,19 +101,35 @@ function speakText(text, rate = 0.9) {
   window.speechSynthesis.speak(utterance);
 }
 
-function startVoiceForShow() {
-  stopSpeech();
-  if (!voiceOn) {
+function queueShowSpeech() {
+  if (!canSpeak || !voiceOn) {
     return;
   }
-  speakText("3", 0.85);
-  speakText("2", 0.85);
-  speakText("1", 0.85);
+  loadVoices();
+  try {
+    window.speechSynthesis.resume();
+  } catch (error) {
+    // iOS can throw if the engine is not ready yet
+  }
+  stopSpeech();
+  speakText("3", 0.8);
+  speakText("2", 0.8);
+  speakText("1", 0.8);
+  speakText(`Happy Birthday, ${herName}.`, 0.88);
+  speakText(WISH.opener, 0.88);
+  WISH.lines.forEach((line) => speakText(line, 0.88));
+  speakText(WISH.closer, 0.88);
 }
 
 function speakWish() {
-  if (!voiceOn) {
+  if (!canSpeak || !voiceOn) {
     return;
+  }
+  loadVoices();
+  try {
+    window.speechSynthesis.resume();
+  } catch (error) {
+    // ignore
   }
   speakText(`Happy Birthday, ${herName}.`, 0.88);
   speakText(WISH.opener, 0.88);
@@ -332,6 +349,7 @@ let formed = false;
 let pointerX = 0;
 let pointerY = 0;
 let showStarted = false;
+let replayLock = false;
 
 const rotX = gsap.quickTo(heart.rotation, "x", { duration: 1.4, ease: "power3.out" });
 const rotY = gsap.quickTo(heart.rotation, "y", { duration: 1.4, ease: "power3.out" });
@@ -471,7 +489,6 @@ function openLoveScreen() {
   revealPhoto();
   gather.play(0);
   words.play(0);
-  speakWish();
 }
 
 function playCountdownThenOpen() {
@@ -538,20 +555,24 @@ function playCountdownThenOpen() {
   });
 }
 
-function startShow(event) {
+function startShow() {
   if (showStarted) {
     return;
   }
   showStarted = true;
-  if (event) {
-    event.preventDefault();
-  }
   intro.style.cursor = "default";
-  startVoiceForShow();
+  queueShowSpeech();
   playCountdownThenOpen();
 }
 
 function replayShow() {
+  if (replayLock) {
+    return;
+  }
+  replayLock = true;
+  window.setTimeout(() => {
+    replayLock = false;
+  }, 700);
   formed = false;
   clock.t = 0;
   if (beat) {
@@ -571,12 +592,18 @@ function replayShow() {
   speakWish();
 }
 
-function bindTap(el, handler) {
+function bindActivate(el, handler) {
+  const go = (event) => {
+    handler(event);
+  };
+  el.addEventListener("click", go);
   el.addEventListener(
-    "pointerdown",
+    "touchend",
     (event) => {
-      event.preventDefault();
-      handler(event);
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      go(event);
     },
     { passive: false }
   );
@@ -653,8 +680,8 @@ function showPhotos() {
 
 preparePhotos();
 
-bindTap(intro, startShow);
-bindTap(replay, replayShow);
+bindActivate(intro, startShow);
+bindActivate(replay, replayShow);
 
 const voiceToggle = document.getElementById("voice-toggle");
 function syncVoiceButton() {
