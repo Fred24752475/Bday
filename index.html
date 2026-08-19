@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Great+Vibes&family=Outfit:wght@300;400;500&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=7" />
+    <link rel="stylesheet" href="styles.css?v=9" />
   </head>
   <body>
     <svg class="heart-svg" viewBox="0 0 600 552" aria-hidden="true">
@@ -79,6 +79,7 @@
       window.BDAY = {
         started: false,
         opened: false,
+        voiceOn: true,
         readyFns: [],
         whenReady: function (fn) {
           if (window.BDAY.opened) {
@@ -86,6 +87,14 @@
           } else {
             window.BDAY.readyFns.push(fn);
           }
+        },
+        unlockVoice: function () {
+          if (!("speechSynthesis" in window)) {
+            return;
+          }
+          try {
+            window.speechSynthesis.resume();
+          } catch (error) {}
         },
       };
 
@@ -97,27 +106,31 @@
         var labelEl = document.querySelector(".countdown-label");
         var ring = document.querySelector(".countdown-ring");
         var labels = { 3: "ready?", 2: "almost", 1: "for you", 0: "open your heart" };
+        var spoken = { 3: "3", 2: "2", 1: "1", 0: "open your heart" };
+        var steps = [3, 2, 1, 0];
+        var canSpeak = "speechSynthesis" in window;
+        var stepIndex = 0;
 
-        function speakNow(text) {
-          try {
-            if (!("speechSynthesis" in window)) {
-              return;
-            }
-            var u = new SpeechSynthesisUtterance(String(text));
-            u.rate = 0.85;
-            u.lang = "en-US";
-            window.speechSynthesis.speak(u);
-          } catch (error) {}
+        function makeVoice(text, rate) {
+          var u = new SpeechSynthesisUtterance(String(text));
+          u.rate = rate;
+          u.pitch = 1;
+          u.volume = 1;
+          u.lang = "en-US";
+          return u;
         }
 
         function showNumber(n) {
           numEl.textContent = String(n);
           labelEl.textContent = labels[n];
+          numEl.classList.remove("is-pop");
+          void numEl.offsetWidth;
+          numEl.classList.add("is-pop");
         }
 
         function finish() {
           window.BDAY.opened = true;
-          intro.style.transition = "opacity 0.8s ease";
+          intro.style.transition = "opacity 1.2s ease";
           intro.style.opacity = "0";
           intro.style.pointerEvents = "none";
           window.BDAY.readyFns.forEach(function (fn) {
@@ -125,15 +138,87 @@
               fn();
             } catch (error) {}
           });
+          beginWish();
         }
 
-        function start() {
+        function beginWish() {
+          if (typeof window.BDAY.startNarration === "function") {
+            window.BDAY.startNarration();
+            return;
+          }
+          keepAlive(beginWish);
+        }
+
+        function keepAlive(next) {
+          if (!canSpeak || window.BDAY.voiceOn === false) {
+            window.setTimeout(next, 400);
+            return;
+          }
+          var keep = makeVoice(".", 0.6);
+          keep.volume = 0.01;
+          keep.onend = next;
+          keep.onerror = function () {
+            window.setTimeout(next, 300);
+          };
+          try {
+            window.speechSynthesis.speak(keep);
+          } catch (error) {
+            window.setTimeout(next, 300);
+          }
+        }
+
+        function afterVoice(u, linger, fallback, next) {
+          var done = false;
+          function go() {
+            if (done) {
+              return;
+            }
+            done = true;
+            window.setTimeout(next, linger);
+          }
+          u.onend = go;
+          u.onerror = go;
+          window.setTimeout(go, fallback);
+        }
+
+        function playStep() {
+          var n = steps[stepIndex];
+          showNumber(n);
+
+          var next = function () {
+            stepIndex += 1;
+            if (stepIndex >= steps.length) {
+              window.setTimeout(finish, 900);
+              return;
+            }
+            playStep();
+          };
+
+          if (!canSpeak || window.BDAY.voiceOn === false) {
+            window.setTimeout(next, n === 0 ? 2400 : 2200);
+            return;
+          }
+
+          var u = makeVoice(spoken[n], n === 0 ? 0.62 : 0.58);
+          afterVoice(u, n === 0 ? 900 : 1600, n === 0 ? 4200 : 2800, next);
+          try {
+            window.speechSynthesis.resume();
+            window.speechSynthesis.speak(u);
+          } catch (error) {
+            window.setTimeout(next, 2200);
+          }
+        }
+
+        function start(event) {
+          if (event && event.target && event.target.closest && event.target.closest(".voice-toggle")) {
+            return;
+          }
           if (window.BDAY.started) {
             return;
           }
           window.BDAY.started = true;
 
-          introCopy.style.transition = "opacity 0.35s ease";
+          introCopy.style.transition = "opacity 0.6s ease";
           introCopy.style.opacity = "0";
           countdown.classList.add("is-on");
           countdown.style.visibility = "visible";
@@ -142,31 +227,20 @@
             ring.style.opacity = "1";
           }
 
-          speakNow("3");
-          speakNow("2");
-          speakNow("1");
+          if (canSpeak) {
+            try {
+              window.speechSynthesis.resume();
+            } catch (error) {}
+          }
 
-          var steps = [3, 2, 1, 0];
-          var i = 0;
-          showNumber(3);
-          var timer = window.setInterval(function () {
-            i += 1;
-            if (i >= steps.length) {
-              window.clearInterval(timer);
-              window.setTimeout(finish, 700);
-              return;
-            }
-            showNumber(steps[i]);
-          }, 1150);
+          playStep();
         }
 
         intro.addEventListener("click", start);
-        intro.addEventListener("pointerdown", start);
-        intro.addEventListener("touchstart", start, { passive: true });
       })();
     </script>
     <script src="https://unpkg.com/three@0.160.1/build/three.min.js"></script>
     <script src="https://unpkg.com/gsap@3.13.0/dist/gsap.min.js"></script>
-    <script src="app.js?v=8"></script>
+    <script src="app.js?v=9"></script>
   </body>
 </html>

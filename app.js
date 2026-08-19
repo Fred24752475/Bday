@@ -43,6 +43,7 @@ WISH.lines.forEach((line) => {
 
 const canSpeak = "speechSynthesis" in window;
 let voiceOn = true;
+window.BDAY.voiceOn = true;
 let chosenVoice = null;
 let loveScreenOpen = false;
 
@@ -76,7 +77,7 @@ if (canSpeak) {
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.resume();
     }
-  }, 8000);
+  }, 5000);
 }
 
 let loveScreenReady = false;
@@ -85,6 +86,7 @@ let speechToken = 0;
 
 function stopSpeech() {
   speechToken += 1;
+  wishSpeechStarted = false;
   if (canSpeak) {
     window.speechSynthesis.cancel();
   }
@@ -98,99 +100,158 @@ function makeUtterance(text, rate) {
   }
   utterance.lang = chosenVoice?.lang || "en-US";
   utterance.rate = rate;
-  utterance.pitch = 1.04;
+  utterance.pitch = 1;
   utterance.volume = 1;
   return utterance;
 }
 
-function speakText(text, rate = 0.9) {
-  if (!canSpeak || !voiceOn || !text) {
-    return;
-  }
-  window.speechSynthesis.speak(makeUtterance(text, rate));
+function pause(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
 
-function waitForLoveScreenThenWish(token) {
-  if (token !== speechToken || !voiceOn || wishSpeechStarted) {
-    return;
-  }
-  if (loveScreenReady) {
-    wishSpeechStarted = true;
-    window.setTimeout(() => {
-      if (token !== speechToken || !voiceOn) {
+function readingMs(text) {
+  const words = String(text).trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(2200, words * 480);
+}
+
+function speakSlow(text, token) {
+  return new Promise((resolve) => {
+    const finish = () => {
+      window.setTimeout(resolve, 900);
+    };
+
+    if (token !== speechToken) {
+      resolve();
+      return;
+    }
+    if (!text) {
+      finish();
+      return;
+    }
+    if (!canSpeak || !voiceOn) {
+      window.setTimeout(resolve, readingMs(text));
+      return;
+    }
+
+    const utterance = makeUtterance(text, 0.68);
+    let settled = false;
+    const done = () => {
+      if (settled || token !== speechToken) {
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
         return;
       }
-      speakWish();
-    }, 450);
-    return;
-  }
-  window.setTimeout(() => {
-    if (token !== speechToken || !voiceOn || wishSpeechStarted) {
-      return;
+      settled = true;
+      finish();
+    };
+    utterance.onend = done;
+    utterance.onerror = done;
+    window.setTimeout(done, readingMs(text) + 2500);
+
+    try {
+      window.speechSynthesis.resume();
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      done();
     }
-    if (loveScreenReady) {
-      waitForLoveScreenThenWish(token);
-      return;
-    }
-    const keep = makeUtterance(".", 0.7);
-    keep.volume = 0.01;
-    keep.onend = () => waitForLoveScreenThenWish(token);
-    keep.onerror = () => waitForLoveScreenThenWish(token);
-    window.speechSynthesis.speak(keep);
-  }, 350);
+  });
 }
 
-function queueCountdownVoice() {
-  if (!canSpeak || !voiceOn) {
+function revealPiece(target) {
+  if (!target) {
     return;
   }
-  stopSpeech();
-  const token = speechToken;
-  loveScreenReady = false;
-  wishSpeechStarted = false;
-  loadVoices();
-  try {
-    window.speechSynthesis.resume();
-  } catch (error) {
-    // iOS can throw if the engine is not ready yet
+  if (typeof gsap === "undefined") {
+    const nodes = typeof target === "string" ? document.querySelectorAll(target) : [target];
+    nodes.forEach((node) => {
+      if (!node || !node.style) {
+        return;
+      }
+      node.style.opacity = "1";
+      node.style.visibility = "visible";
+      node.style.transform = "none";
+    });
+    return;
+  }
+  gsap.to(target, { autoAlpha: 1, x: 0, y: 0, duration: 1.8, ease: "power2.out" });
+}
+
+async function narrateWish(token) {
+  if (token !== speechToken) {
+    return;
+  }
+  wishSpeechStarted = true;
+  loveScreenReady = true;
+
+  if (typeof gsap !== "undefined") {
+    gsap.set(wishEl, { autoAlpha: 1 });
+    gsap.to(glow, { autoAlpha: 1, duration: 2.4, ease: "power2.out" });
   }
 
-  const nums = ["3", "2", "1"];
-  let index = 0;
+  revealPiece(eyebrow);
+  await pause(500);
+  if (token !== speechToken) {
+    return;
+  }
+  revealPiece(nameEl);
+  await pause(700);
+  if (token !== speechToken) {
+    return;
+  }
+  await speakSlow(`Happy Birthday, ${herName}.`, token);
+  if (token !== speechToken) {
+    return;
+  }
 
-  const speakNextNumber = () => {
-    if (token !== speechToken || !voiceOn) {
+  revealPiece(wishOpen);
+  await pause(400);
+  await speakSlow(WISH.opener, token);
+  if (token !== speechToken) {
+    return;
+  }
+
+  const lineNodes = document.querySelectorAll(".wish-line");
+  for (let i = 0; i < WISH.lines.length; i += 1) {
+    if (token !== speechToken) {
       return;
     }
-    if (index >= nums.length) {
-      waitForLoveScreenThenWish(token);
-      return;
-    }
-    const utterance = makeUtterance(nums[index], 0.8);
-    index += 1;
-    utterance.onend = speakNextNumber;
-    utterance.onerror = speakNextNumber;
-    window.speechSynthesis.speak(utterance);
-  };
+    revealPiece(lineNodes[i] || `.wish-line:nth-child(${i + 1})`);
+    await pause(400);
+    await speakSlow(WISH.lines[i], token);
+  }
 
-  speakNextNumber();
+  if (token !== speechToken) {
+    return;
+  }
+  revealPiece(wishClose);
+  await pause(400);
+  await speakSlow(WISH.closer, token);
+  if (token !== speechToken) {
+    return;
+  }
+
+  showPhotos();
+  if (typeof gsap !== "undefined") {
+    gsap.to(replay, { autoAlpha: 1, duration: 1.2, ease: "power2.out" });
+  }
+  replay.classList.add("is-on");
 }
 
 function speakWish() {
-  if (!canSpeak || !voiceOn) {
+  const token = speechToken;
+  narrateWish(token);
+}
+
+window.BDAY.startNarration = function () {
+  if (wishSpeechStarted) {
     return;
   }
-  loadVoices();
-  try {
-    window.speechSynthesis.resume();
-  } catch (error) {
-    // ignore
-  }
-  speakText(`Happy Birthday, ${herName}.`, 0.88);
-  speakText(WISH.opener, 0.88);
-  WISH.lines.forEach((line) => speakText(line, 0.88));
-  speakText(WISH.closer, 0.88);
-}
+  speakWish();
+};
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = window.matchMedia("(max-width: 720px)").matches;
@@ -280,7 +341,6 @@ window.BDAY.whenReady(function () {
   if (window.__bdayPlayHeart) {
     window.__bdayPlayHeart();
   }
-  speakWish();
 });
 
 const scene = new THREE.Scene();
@@ -565,8 +625,6 @@ function openLoveScreen() {
   loveScreenReady = true;
   revealPhoto();
   gather.play(0);
-  words.play(0);
-  waitForLoveScreenThenWish(speechToken);
 }
 
 function playCountdownThenOpen() {
@@ -640,11 +698,6 @@ function startShow() {
   showStarted = true;
   intro.style.cursor = "default";
   playCountdownThenOpen();
-  try {
-    queueCountdownVoice();
-  } catch (error) {
-    console.error(error);
-  }
 }
 
 function bindActivate(el, handler) {
@@ -686,7 +739,6 @@ function replayShow() {
   placeParticles(0, false);
   revealPhoto();
   gather.play(0);
-  words.play(0);
   stopSpeech();
   speakWish();
 }
@@ -758,7 +810,6 @@ preparePhotos();
 
 window.__bdayPlayHeart = function () {
   gather.play(0);
-  words.play(0);
 };
 
 if (window.BDAY.opened) {
@@ -775,14 +826,34 @@ function syncVoiceButton() {
 voiceToggle.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
+  window.BDAY.unlockVoice();
+
+  if (!window.BDAY.started) {
+    voiceOn = true;
+    window.BDAY.voiceOn = true;
+    syncVoiceButton();
+    try {
+      const prime = makeUtterance(" ", 1);
+      prime.volume = 0.01;
+      window.speechSynthesis.speak(prime);
+    } catch (error) {}
+    return;
+  }
+
+  if (voiceOn && loveScreenOpen && !wishSpeechStarted) {
+    window.BDAY.startNarration();
+    return;
+  }
+
   voiceOn = !voiceOn;
+  window.BDAY.voiceOn = voiceOn;
   syncVoiceButton();
   if (!voiceOn) {
     stopSpeech();
-  } else if (loveScreenOpen) {
-    stopSpeech();
-    speakWish();
+    return;
   }
+  stopSpeech();
+  speakWish();
 });
 
 window.addEventListener("pointermove", (event) => {
