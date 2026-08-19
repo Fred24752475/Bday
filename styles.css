@@ -12,7 +12,10 @@
 html,
 body {
   width: 100%;
+  max-width: 100%;
   height: 100%;
+  height: 100dvh;
+  min-height: 100svh;
   overflow: hidden;
   background: #050308;
   color: #fff;
@@ -20,6 +23,8 @@ body {
   -webkit-font-smoothing: antialiased;
   user-select: none;
   touch-action: manipulation;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 .heart-svg {
@@ -71,8 +76,8 @@ body {
   display: block;
   width: auto;
   height: auto;
-  max-width: min(100%, 774px);
-  max-height: min(100%, 1024px);
+  max-width: min(100% - 24px, 774px);
+  max-height: min(100dvh - 24px, 1024px);
   object-fit: contain;
   object-position: center;
   opacity: 0;
@@ -106,10 +111,10 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  top: max(28px, env(safe-area-inset-top));
+  top: max(20px, env(safe-area-inset-top));
   z-index: 2;
   text-align: center;
-  padding: 0 24px;
+  padding: 0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right));
   pointer-events: none;
 }
 
@@ -143,6 +148,8 @@ body {
   text-align: center;
   pointer-events: none;
   opacity: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .wish-open,
@@ -282,6 +289,11 @@ body {
   cursor: pointer;
   -webkit-tap-highlight-color: rgba(255, 180, 210, 0.2);
   touch-action: manipulation;
+  padding:
+    max(20px, env(safe-area-inset-top))
+    max(20px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
 }
 
 .intro-copy {
@@ -289,6 +301,8 @@ body {
   flex-direction: column;
   align-items: center;
   pointer-events: none;
+  width: min(100%, 520px);
+  text-align: center;
 }
 
 .intro-kicker {
@@ -317,7 +331,7 @@ body {
   background: rgba(255, 150, 190, 0.22);
   color: #fff;
   font-size: 13px;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   display: flex;
   align-items: center;
@@ -339,8 +353,10 @@ body {
 
 .countdown-ring {
   position: absolute;
-  width: min(58vw, 280px);
-  height: min(58vw, 280px);
+  width: min(48vw, 240px);
+  height: min(48vw, 240px);
+  max-width: 70vmin;
+  max-height: 70vmin;
   border-radius: 50%;
   border: 1px solid rgba(255, 210, 225, 0.35);
   box-shadow: 0 0 40px rgba(255, 150, 190, 0.18), inset 0 0 50px rgba(255, 140, 185, 0.08);
@@ -350,17 +366,20 @@ body {
   position: relative;
   z-index: 1;
   margin-bottom: 8px;
-  font-size: 12px;
-  letter-spacing: 0.46em;
+  font-size: clamp(11px, 3.2vw, 13px);
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: #ffc4d8;
+  text-align: center;
+  padding: 0 16px;
+  max-width: 90vw;
 }
 
 .countdown-num {
   position: relative;
   z-index: 1;
   font-family: "Great Vibes", cursive;
-  font-size: clamp(120px, 34vw, 220px);
+  font-size: clamp(84px, 26vw, 200px);
   line-height: 0.9;
   color: #fff7fb;
   text-shadow:
@@ -389,32 +408,101 @@ body {
 
 @media (max-width: 720px) {
   .name {
-    font-size: clamp(40px, 12vw, 64px);
+    font-size: clamp(34px, 11vw, 52px);
+  }
+
+  .eyebrow {
+    letter-spacing: 0.18em;
   }
 
   .wish {
-    top: 56%;
+    top: auto;
+    bottom: max(58px, calc(env(safe-area-inset-bottom) + 48px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(100% - 24px, 520px);
+    max-height: 36dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: auto;
+    padding: 0 2px 4px;
+  }
+
+  .wish-open {
+    font-size: clamp(14px, 3.8vw, 17px);
+    margin-bottom: 8px;
+    line-height: 1.4;
   }
 
   .wish-line {
-    margin-bottom: 12px;
+    font-size: clamp(13px, 3.6vw, 16px);
+    margin-bottom: 8px;
+    line-height: 1.4;
   }
 
-  .memory:nth-child(n + 5) {
-    display: none;
+  .wish-close {
+    font-size: clamp(15px, 4vw, 18px);
+    margin-top: 8px;
   }
 
+  .replay {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .memory:nth-child(n + 5),
   .memory:nth-child(3),
   .memory:nth-child(4) {
     display: none;
   }
 
   .memory {
-    width: min(30vw, 118px);
-    padding: 6px 6px 16px;
+    width: min(26vw, 96px);
+    padding: 5px 5px 12px;
   }
 
   .memory img {
-    height: min(24vw, 90px);
+    height: min(20vw, 72px);
+  }
+
+  .intro-title {
+    font-size: clamp(28px, 8.4vw, 44px);
+    max-width: 14ch;
+  }
+
+  .intro-kicker {
+    letter-spacing: 0.24em;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .stage {
+    top: max(8px, env(safe-area-inset-top));
+  }
+
+  .name {
+    font-size: clamp(22px, 6vh, 36px);
+    margin-top: 4px;
+  }
+
+  .wish {
+    top: 56%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+    max-height: 62vh;
+  }
+
+  .countdown-num {
+    font-size: clamp(64px, 18vw, 120px);
+  }
+
+  .countdown-ring {
+    width: min(28vw, 160px);
+    height: min(28vw, 160px);
+  }
+
+  .intro-hit {
+    margin-top: 18px;
+    min-height: 44px;
   }
 }

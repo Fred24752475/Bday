@@ -42,7 +42,27 @@ WISH.lines.forEach((line) => {
 });
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const isMobile = window.innerWidth < 768;
+const isMobile = window.matchMedia("(max-width: 720px)").matches;
+
+function viewSize() {
+  const viewport = window.visualViewport;
+  return {
+    w: Math.round(viewport?.width || window.innerWidth),
+    h: Math.round(viewport?.height || window.innerHeight),
+  };
+}
+
+function cameraDistance() {
+  const { w, h } = viewSize();
+  const shortest = Math.min(w, h);
+  if (w <= 720) {
+    return shortest < 400 ? 740 : 660;
+  }
+  if (h < 520 && w > h) {
+    return 640;
+  }
+  return 500;
+}
 
 const wrap = document.getElementById("canvas-wrap");
 const intro = document.getElementById("intro");
@@ -63,35 +83,47 @@ const bgPhoto = document.getElementById("bg-photo-img");
 
 gsap.set(bgPhoto, { autoAlpha: 0, scale: 0.92, y: 28 });
 
+function fitPhoto() {
+  if (!bgPhoto) {
+    return;
+  }
+  const nativeW = bgPhoto.naturalWidth || 774;
+  const nativeH = bgPhoto.naturalHeight || 1024;
+  const { w, h } = viewSize();
+  const pad = w <= 720 ? 24 : 32;
+  bgPhoto.style.maxWidth = `${Math.min(nativeW, Math.max(180, w - pad))}px`;
+  bgPhoto.style.maxHeight = `${Math.min(nativeH, Math.max(220, h - pad))}px`;
+}
+
 if (bgPhoto) {
-  const fitPhoto = () => {
-    const nativeW = bgPhoto.naturalWidth || 774;
-    const nativeH = bgPhoto.naturalHeight || 1024;
-    bgPhoto.style.maxWidth = `${Math.min(nativeW, window.innerWidth)}px`;
-    bgPhoto.style.maxHeight = `${Math.min(nativeH, window.innerHeight)}px`;
-  };
   if (bgPhoto.complete) {
     fitPhoto();
   } else {
     bgPhoto.addEventListener("load", fitPhoto);
   }
-  window.addEventListener("resize", fitPhoto);
 }
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(
-  55,
-  window.innerWidth / window.innerHeight,
-  1,
-  3000
-);
-camera.position.z = isMobile ? 540 : 500;
+const camera = new THREE.PerspectiveCamera(55, viewSize().w / Math.max(viewSize().h, 1), 1, 3000);
+camera.position.z = cameraDistance();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.75 : 2));
+renderer.setSize(viewSize().w, viewSize().h, false);
 renderer.setClearColor(0x000000, 0);
 wrap.appendChild(renderer.domElement);
+
+function sizeScene() {
+  const { w, h } = viewSize();
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+  camera.position.z = cameraDistance();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, w <= 720 ? 1.75 : 2));
+  renderer.setSize(w, h, false);
+  fitPhoto();
+}
+
+sizeScene();
 
 function createSprite() {
   const size = 64;
@@ -247,13 +279,14 @@ function driftParticles(elapsed) {
 }
 
 function resetWishPieces() {
+  const slide = isMobile ? 72 : 120;
   gsap.set(wishEl, { autoAlpha: 0 });
-  gsap.set(wishOpen, { autoAlpha: 0, y: -90, x: 0 });
-  gsap.set(".wish-line:nth-child(1)", { autoAlpha: 0, x: -120, y: 0 });
-  gsap.set(".wish-line:nth-child(2)", { autoAlpha: 0, x: 120, y: 0 });
-  gsap.set(".wish-line:nth-child(3)", { autoAlpha: 0, x: -110, y: 24 });
-  gsap.set(".wish-line:nth-child(4)", { autoAlpha: 0, x: 110, y: 24 });
-  gsap.set(wishClose, { autoAlpha: 0, y: 100, x: 0 });
+  gsap.set(wishOpen, { autoAlpha: 0, y: isMobile ? -48 : -90, x: 0 });
+  gsap.set(".wish-line:nth-child(1)", { autoAlpha: 0, x: -slide, y: 0 });
+  gsap.set(".wish-line:nth-child(2)", { autoAlpha: 0, x: slide, y: 0 });
+  gsap.set(".wish-line:nth-child(3)", { autoAlpha: 0, x: -slide, y: isMobile ? 8 : 24 });
+  gsap.set(".wish-line:nth-child(4)", { autoAlpha: 0, x: slide, y: isMobile ? 8 : 24 });
+  gsap.set(wishClose, { autoAlpha: 0, y: isMobile ? 48 : 100, x: 0 });
 }
 
 gsap.set([eyebrow, nameEl, replay, glow], { autoAlpha: 0 });
@@ -544,11 +577,10 @@ window.addEventListener("pointermove", (event) => {
   pointerY = (event.clientY / window.innerHeight) * 2 - 1;
 });
 
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+window.addEventListener("resize", sizeScene);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", sizeScene);
+}
 
 const renderClock = new THREE.Clock();
 
