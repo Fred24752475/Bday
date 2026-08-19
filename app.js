@@ -546,6 +546,7 @@ function openLoveScreen() {
   gather.play(0);
   words.play(0);
   waitForLoveScreenThenWish(speechToken);
+}
 
 function playCountdownThenOpen() {
   const labels = {
@@ -617,8 +618,29 @@ function startShow() {
   }
   showStarted = true;
   intro.style.cursor = "default";
-  queueCountdownVoice();
   playCountdownThenOpen();
+  try {
+    queueCountdownVoice();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function bindActivate(el, handler) {
+  const go = (event) => {
+    if (event.target.closest(".voice-toggle")) {
+      return;
+    }
+    handler(event);
+  };
+  el.addEventListener("click", go);
+  el.addEventListener("pointerup", go);
+  el.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handler(event);
+    }
+  });
 }
 
 function replayShow() {
@@ -646,29 +668,6 @@ function replayShow() {
   words.play(0);
   stopSpeech();
   speakWish();
-}
-
-function bindActivate(el, handler) {
-  const go = (event) => {
-    handler(event);
-  };
-  el.addEventListener("click", go);
-  el.addEventListener(
-    "touchend",
-    (event) => {
-      if (event.cancelable) {
-        event.preventDefault();
-      }
-      go(event);
-    },
-    { passive: false }
-  );
-  el.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handler(event);
-    }
-  });
 }
 
 function loadPhoto(src) {
